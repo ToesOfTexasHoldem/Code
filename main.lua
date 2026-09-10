@@ -1,14 +1,10 @@
 --!nolint
 
+local AutoUpdate = (...) or true
+
 repeat
 	task.wait()
 until game:IsLoaded() -- Ensure the game is loaded so no possible errors. - lua_u
-
-print("Stage 1")
-
-if not isfolder("SkidWare") then
-	makefolder("SkidWare")
-end
 
 -- Disable AC
 for i, v in pairs(getgc(true)) do
@@ -52,7 +48,6 @@ Camera = workspace.CurrentCamera
 
 -- Local Vars
 const IsLocal = isfile("SkidWare/Settings.json") and HttpService:JSONDecode(readfile("SkidWare/Settings.json")).DevelopmentBuild or false
-const BaseURL = "https://raw.githubusercontent.com/ToesOfTexasHoldem/Code/refs/heads/main/"
 const Environment = getfenv()
 const TitleText = "SkidWare - made by noritery, modularized by lua_u"
 const DataPing = Stats.Network.ServerStatsItem["Data Ping"]
@@ -68,15 +63,22 @@ AutoFixArmorSelf = false
 AutoFixArmorNearby = false
 
 -- Functions
-function RegisterDrawing(drawingObj)
-	table.insert(DrawingRegistry, drawingObj)
-	return drawingObj
+const function HGet(url: string)
+	local ret = request({
+		Url = url,
+		Method = "GET",
+		Headers = {
+			["Cache-Control"] = "no-cache"
+		}
+	})
+	
+	return ret.Body
 end
 
 const function Get(name: string, update: boolean?)
 	if (not isfile("SkidWare/" .. name)) or update then
 		print("Downloading", name)
-		const code = game:HttpGet(BaseURL .. name)
+		const code = HGet(BaseURL .. name)
 		print("Got", name)
 		writefile("SkidWare/" .. name, code)
 	end
@@ -105,10 +107,15 @@ function Load(name: string)
 	end
 end
 
+function RegisterDrawing(drawingObj)
+	table.insert(DrawingRegistry, drawingObj)
+	return drawingObj
+end
+
 -- Main Script Body
 local CurrentVersion = Get("version")
-const OtherVersion = game:HttpGet(BaseURL .. "version")
-if CurrentVersion ~= OtherVersion and not IsLocal then -- Dont try to update if DevelopmentBuild is enabled, probably should switch it to auto-updating based on sha256 hash's but whatever. - lua_u
+const OtherVersion = HGet(BaseURL .. "version")
+if (CurrentVersion ~= OtherVersion and not IsLocal) and AutoUpdate then -- Dont try to update if DevelopmentBuild is enabled, probably should switch it to auto-updating based on sha256 hash's but whatever. - lua_u
 	UpdateFlag = true
 	CurrentVersion = OtherVersion
 	writefile("SkidWare/version", OtherVersion) -- This could fail if someone closes it down before it all loads, I or someone else should fix it in the near future cause I can NOT be damned to do it right now. - lua_u
