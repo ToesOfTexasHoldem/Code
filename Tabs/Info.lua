@@ -2,6 +2,7 @@ local InfoGroup = InfoTab:AddLeftGroupbox('Credits & Socials')
 local SessionGroup = InfoTab:AddRightGroupbox('Session Status')
 
 InfoGroup:AddLabel('Made by noritery', true)
+InfoGroup:AddLabel('Optimized/Modularized by lua_u', true)
 InfoGroup:AddDivider()
 InfoGroup:AddLabel('UI Library by violin-suzutsuki', true)
 InfoGroup:AddLabel('github.com/violin-suzutsuki/LinoriaLib', true)
