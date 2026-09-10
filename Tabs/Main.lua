@@ -168,7 +168,7 @@ end
 
 local CoreGui = game:GetService("CoreGui")
 
-local function CreateSeatGUI(seat)
+local function CreateSeatGUI(seat: Seat)
 	if not seat or not seat:IsA('BasePart') then return end
 	if ActiveSeatGUIs[seat] then return end
 
@@ -201,7 +201,8 @@ local function CreateSeatGUI(seat)
 		local char = LocalPlayer.Character
 		local hrp = char and char:FindFirstChild('HumanoidRootPart')
 		if hrp then
-			hrp.CFrame = seat.CFrame + Vector3.new(0, 3, 0)
+			--hrp.CFrame = seat.CFrame + Vector3.new(0, 3, 0)
+			seat:Sit(char.Humanoid)
 			Library:Notify('Teleported to seat!', 2)
 		end
 	end)
