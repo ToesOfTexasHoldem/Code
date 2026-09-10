@@ -8,6 +8,21 @@ if not isfolder("SkidWare") then
 	makefolder("SkidWare")
 end
 
+-- Disable AC
+for i, v in pairs(getgc(true)) do
+	if typeof(v) ~= "table" then continue end
+	if rawget(v, "Detected") and typeof(rawget(v, "Detected")) == "function" then
+		local old
+		old = hookfunction(rawget(v, "Detected"), function(a, ...)
+			if a == "crash" or a == "kick" then
+				return
+			else
+				return old(a, ...)
+			end
+		end)
+	end
+end
+
 -- Services (Global cuz yes)
 Players = game:GetService("Players")
 RunService = game:GetService("RunService")
