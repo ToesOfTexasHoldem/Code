@@ -102,6 +102,9 @@ BulletTracerGroup:AddSlider('BulletTracer_Lifetime', {
 	Rounding = 1
 })
 
+const TweenService = game:GetService("TweenService")
+const Debris = game:GetService("Debris")
+
 local function spawnBulletTracer(from, hit)
 	if not BulletTracerToggle.Value then return end
 
@@ -119,13 +122,32 @@ local function spawnBulletTracer(from, hit)
 	part.Size = Vector3.new(thickness, distance, thickness)
 	part.CFrame = CFrame.new(midpoint, hit) * CFrame.Angles(math.rad(90), 0, 0)
 	part.Parent = workspace
-
-	-- Safely destroy after the configured lifetime
-	task.delay(Options.BulletTracer_Lifetime.Value, function()
-		pcall(function()
-			part:Destroy()
-		end)
+	
+	TweenService:Create(part, TweenInfo.new(Options.BulletTracer_Lifetime.Value, Enum.EasingStyle.Quart), {Transparency = 0, Size = Vector3.new(0, distance, 0)}):Play()
+	
+	task.spawn(function()
+		local a = tick()
+		while part do
+			local a, b = pcall(function()
+				task.wait()
+				local b = tick()
+				local dt = b - a
+				a = b
+				part.CFrame *= CFrame.Angles(0, math.rad(dt*45), 0)
+			end)
+			if not a then
+				break
+			end
+		end
 	end)
+	
+	-- Safely destroy after the configured lifetime
+	--task.delay(Options.BulletTracer_Lifetime.Value, function()
+		--pcall(function()
+			--part:Destroy()
+		--end)
+	--end)
+	Debris:AddItem(part, Options.BulletTracer_Lifetime.Value)
 end
 
 -- 3. Hook Namecall for FireEvent
