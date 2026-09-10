@@ -6,3 +6,5 @@ MenuGroup:AddButton({
 
 local MenuPicker = MenuGroup:AddLabel('Menu bind')
 MenuPicker:AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind
