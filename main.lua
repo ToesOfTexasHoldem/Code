@@ -47,6 +47,9 @@ sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
 Camera = workspace.CurrentCamera
 
 -- Local Vars
+if not BaseUrl then
+	BaseURL = "https://raw.githubusercontent.com/ToesOfTexasHoldem/Code/refs/heads/main/"
+end
 const IsLocal = isfile("SkidWare/Settings.json") and HttpService:JSONDecode(readfile("SkidWare/Settings.json")).DevelopmentBuild or false
 const Environment = getfenv()
 const TitleText = "SkidWare - made by noritery, modularized by lua_u"

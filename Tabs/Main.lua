@@ -539,6 +539,16 @@ end)
 
 local DisabledLightingEffects = {}
 
+setscriptable(workspace.Terrain, "Decoration", true)
+
+WorldGroup:AddToggle("No Grass", {
+	Text = 'No Grass',
+	Default = false,
+	Callback = function(Value)
+		workspace.Terrain.Decoration = not Value
+	end,
+})
+
 WorldGroup:AddToggle('Fullbright', {
 	Text = 'Fullbright',
 	Default = false,
