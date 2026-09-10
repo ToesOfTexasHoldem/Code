@@ -306,43 +306,80 @@ local PlayerRemovingConn = Players.PlayerRemoving:Connect(RemoveESP)
 
 local VisualsConnection = RunService.RenderStepped:Connect(function()
 	local viewportSize = Camera.ViewportSize
-	local center = Vector2_new(viewportSize.X / 2, viewportSize.Y / 2)
+	local centerX = viewportSize.X * 0.5
+	local centerY = viewportSize.Y * 0.5
+	local center = Vector2_new(centerX, centerY)
+	local camCFrame = Camera.CFrame
+	local camPos = camCFrame.Position
+	local localChar = LocalPlayer.Character
+	local localHRP = localChar and localChar:FindFirstChild("HumanoidRootPart")
 
-	if Toggles.Crosshair and Toggles.Crosshair.Value then
-		local color = Options.CrosshairColor and Options.CrosshairColor.Value or Color3_fromRGB(0, 255, 0)
-		CrosshairH.From = Vector2_new(center.X - 8, center.Y)
-		CrosshairH.To = Vector2_new(center.X + 8, center.Y)
-		CrosshairH.Color = color
+	local showCrosshair = Toggles.Crosshair and Toggles.Crosshair.Value
+	local showOnlyPassiveOff = Toggles.ShowOnlyPassiveOff and Toggles.ShowOnlyPassiveOff.Value
+	local highlightESP = Toggles.HighlightESP and Toggles.HighlightESP.Value
+	local wallcheckESP = Toggles.ChamsWallcheckESP and Toggles.ChamsWallcheckESP.Value
+	local chamsESP = Toggles.ChamsESP and Toggles.ChamsESP.Value
+	local isChamsActive = wallcheckESP or chamsESP
+	local offscreenESP = Toggles.OffscreenESP and Toggles.OffscreenESP.Value
+	local tracerESP = Toggles.TracerESP and Toggles.TracerESP.Value
+	local boxESP = Toggles.BoxESP and Toggles.BoxESP.Value
+	local healthBarESP = Toggles.HealthBarESP and Toggles.HealthBarESP.Value
+	local nameESP = Toggles.NameESP and Toggles.NameESP.Value
+	local passiveESP = Toggles.PassiveESP and Toggles.PassiveESP.Value
+	local skeletonESP = Toggles.SkeletonESP and Toggles.SkeletonESP.Value
+	local hideUsernames = Toggles.HideAllUsernames and Toggles.HideAllUsernames.Value
+
+	local crosshairColor = (Options.CrosshairColor and Options.CrosshairColor.Value) or Color3_fromRGB(0, 255, 0)
+	local fillTrans = (Options.ChamsFillTransparency and Options.ChamsFillTransparency.Value) or 0.2
+	local outlineTrans = (Options.ChamsOutlineTransparency and Options.ChamsOutlineTransparency.Value) or 0.5
+	local depthStyle = (Options.ChamsDepthMode and Enum.HighlightDepthMode[Options.ChamsDepthMode.Value]) or Enum.HighlightDepthMode.AlwaysOnTop
+	local materialMode = (Options.ChamsMaterial and Options.ChamsMaterial.Value) or "Highlight"
+	local chamsColor = (Options.ChamsColor and Options.ChamsColor.Value) or Color3_fromRGB(0, 255, 255)
+	local visChamsColor = (Options.VisibleChamsColor and Options.VisibleChamsColor.Value) or Color3_fromRGB(0, 255, 0)
+	local hidChamsColor = (Options.HiddenChamsColor and Options.HiddenChamsColor.Value) or Color3_fromRGB(255, 0, 0)
+	local highlightColor = (Options.HighlightColor and Options.HighlightColor.Value) or Color3_fromRGB(255, 0, 0)
+	local offscreenRadius = (Options.OffscreenRadius and Options.OffscreenRadius.Value) or 200
+	local offscreenSize = (Options.OffscreenSize and Options.OffscreenSize.Value) or 15
+	local offscreenColor = (Options.OffscreenColor and Options.OffscreenColor.Value) or Color3_fromRGB(255, 100, 100)
+	local tracerOriginType = (Options.TracerOrigin and Options.TracerOrigin.Value) or "Bottom"
+	local tracerColor = (Options.TracerColor and Options.TracerColor.Value) or Color3_fromRGB(255, 255, 255)
+	local boxColor = (Options.BoxColor and Options.BoxColor.Value) or Color3_fromRGB(255, 255, 255)
+	local nameColor = (Options.NameColor and Options.NameColor.Value) or Color3_fromRGB(255, 255, 255)
+	local skeletonColor = (Options.SkeletonColor and Options.SkeletonColor.Value) or Color3_fromRGB(255, 255, 255)
+
+	local useMaterialChams = isChamsActive and materialMode ~= "Highlight"
+	local chosenMaterial = useMaterialChams and (Enum.Material[materialMode] or Enum.Material.ForceField)
+
+	if showCrosshair then
+		CrosshairH.From = Vector2_new(centerX - 8, centerY)
+		CrosshairH.To = Vector2_new(centerX + 8, centerY)
+		CrosshairH.Color = crosshairColor
 		CrosshairH.Visible = true
-
-		CrosshairV.From = Vector2_new(center.X, center.Y - 8)
-		CrosshairV.To = Vector2_new(center.X, center.Y + 8)
-		CrosshairV.Color = color
+		CrosshairV.From = Vector2_new(centerX, centerY - 8)
+		CrosshairV.To = Vector2_new(centerX, centerY + 8)
+		CrosshairV.Color = crosshairColor
 		CrosshairV.Visible = true
 	else
 		CrosshairH.Visible = false
 		CrosshairV.Visible = false
 	end
 
-	local fillTrans = Options.ChamsFillTransparency and Options.ChamsFillTransparency.Value or 0.2
-	local outlineTrans = Options.ChamsOutlineTransparency and Options.ChamsOutlineTransparency.Value or 0.5
-	local depthStyle = Options.ChamsDepthMode and Enum.HighlightDepthMode[Options.ChamsDepthMode.Value] or Enum.HighlightDepthMode.AlwaysOnTop
-	local materialMode = Options.ChamsMaterial and Options.ChamsMaterial.Value or 'Highlight'
+	local frame = math.floor(os.clock() * 30)
+	local doHeavy = (frame % 4) == 0
 
 	for player, data in pairs(ESPCache) do
 		local character = player.Character
-		local hrp = data.HRP or (character and character:FindFirstChild('HumanoidRootPart'))
-		local head = data.Head or (character and character:FindFirstChild('Head'))
-		local humanoid = data.Humanoid or (character and character:FindFirstChildOfClass('Humanoid'))
+		local hrp = data.HRP or (character and character:FindFirstChild("HumanoidRootPart"))
+		local head = data.Head or (character and character:FindFirstChild("Head"))
+		local humanoid = data.Humanoid or (character and character:FindFirstChildOfClass("Humanoid"))
 
-		if character and hrp and humanoid and humanoid.Health > 0 then
-			local hasForceField = character:FindFirstChildOfClass('ForceField') ~= nil
-			local shouldSkip = (Toggles.ShowOnlyPassiveOff and Toggles.ShowOnlyPassiveOff.Value and hasForceField)
-
-			if shouldSkip then
+		if not (character and hrp and humanoid and humanoid.Health > 0) then
+			if data._active then
+				ClearMaterialChams(character)
 				ClearAllCharacterHighlights(character)
 				data.ManagedHighlight = nil
-				ClearMaterialChams(character)
+				data._active = false
+				data._chamsSet = false
 				if data.Box then data.Box.Visible = false end
 				if data.HealthBarBg then data.HealthBarBg.Visible = false end
 				if data.HealthBar then data.HealthBar.Visible = false end
@@ -350,269 +387,259 @@ local VisualsConnection = RunService.RenderStepped:Connect(function()
 				if data.PassiveText then data.PassiveText.Visible = false end
 				if data.TracerLine then data.TracerLine.Visible = false end
 				if data.OffscreenArrow then data.OffscreenArrow.Visible = false end
-				for _, line in ipairs(data.SkeletonLines) do line.Visible = false end
-			else
-				local isHighlightActive = Toggles.HighlightESP and Toggles.HighlightESP.Value
-				local isWallcheckActive = Toggles.ChamsWallcheckESP and Toggles.ChamsWallcheckESP.Value
-				local isNormalActive = Toggles.ChamsESP and Toggles.ChamsESP.Value
-				local isChamsActive = isWallcheckActive or isNormalActive
+				for i = 1, #data.SkeletonLines do data.SkeletonLines[i].Visible = false end
+			end
+			continue
+		end
 
-				if isChamsActive or isHighlightActive then
-					if isChamsActive and materialMode ~= 'Highlight' then
-						local chosenMaterial = Enum.Material[materialMode] or Enum.Material.ForceField
-						local chosenColor = Options.ChamsColor and Options.ChamsColor.Value or Color3_fromRGB(0, 255, 255)
+		local hasForceField = character:FindFirstChildOfClass("ForceField") ~= nil
 
-						if isWallcheckActive then
-							local visColor = Options.VisibleChamsColor and Options.VisibleChamsColor.Value or Color3_fromRGB(0, 255, 0)
-							local hidColor = Options.HiddenChamsColor and Options.HiddenChamsColor.Value or Color3_fromRGB(255, 0, 0)
-							local targetPart = head or hrp
-							sharedRaycastParams.FilterDescendantsInstances = { Camera, character, LocalPlayer.Character }
+		if showOnlyPassiveOff and hasForceField then
+			if data._active then
+				ClearAllCharacterHighlights(character)
+				data.ManagedHighlight = nil
+				ClearMaterialChams(character)
+				data._active = false
+				data._chamsSet = false
+				if data.Box then data.Box.Visible = false end
+				if data.HealthBarBg then data.HealthBarBg.Visible = false end
+				if data.HealthBar then data.HealthBar.Visible = false end
+				if data.NameText then data.NameText.Visible = false end
+				if data.PassiveText then data.PassiveText.Visible = false end
+				if data.TracerLine then data.TracerLine.Visible = false end
+				if data.OffscreenArrow then data.OffscreenArrow.Visible = false end
+				for i = 1, #data.SkeletonLines do data.SkeletonLines[i].Visible = false end
+			end
+			continue
+		end
 
-							local result = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position), sharedRaycastParams)
-							local isBlocked = false
-							if result and result.Instance then
-								if result.Instance.CanCollide and not result.Instance:IsDescendantOf(character) then
-									isBlocked = true
-								end
-							end
-							chosenColor = (not isBlocked) and visColor or hidColor
-						end
+		data._active = true
+		local hrpPos = hrp.Position
 
-						ApplyMaterialChams(character, chosenMaterial, chosenColor, fillTrans)
-					elseif materialMode == 'Highlight' then
-						ClearMaterialChams(character)
+		if isChamsActive or highlightESP then
+			if doHeavy or not data._chamsSet then
+				local isBlocked = data._lastBlocked or false
+				if wallcheckESP then
+					local targetPart = head or hrp
+					sharedRaycastParams.FilterDescendantsInstances = {Camera, character, localChar}
+					local result = workspace:Raycast(camPos, targetPart.Position - camPos, sharedRaycastParams)
+					isBlocked = result and result.Instance and result.Instance.CanCollide and not result.Instance:IsDescendantOf(character)
+					data._lastBlocked = isBlocked
+				end
+
+				local finalChamsColor = wallcheckESP and (isBlocked and hidChamsColor or visChamsColor) or chamsColor
+
+				if useMaterialChams then
+					if data._lastMatColor ~= finalChamsColor or data._lastMat ~= chosenMaterial then
+						ApplyMaterialChams(character, chosenMaterial, finalChamsColor, fillTrans)
+						data._lastMatColor = finalChamsColor
+						data._lastMat = chosenMaterial
 					end
+				else
+					if data._lastMat then
+						ClearMaterialChams(character)
+						data._lastMat = nil
+						data._lastMatColor = nil
+					end
+				end
 
-					local hl = character:FindFirstChild('ManagedESPHighlight')
-					if not hl or not hl:IsA('Highlight') then
-						hl = Instance.new('Highlight')
-						hl.Name = 'ManagedESPHighlight'
+				local hl = data.ManagedHighlight
+				if not (hl and hl.Parent == character) then
+					hl = character:FindFirstChild("ManagedESPHighlight")
+					if not hl then
+						hl = Instance.new("Highlight")
+						hl.Name = "ManagedESPHighlight"
 						hl.Parent = character
 					end
 					data.ManagedHighlight = hl
+				end
 
-					local fillColor = Color3_fromRGB(255, 0, 0)
-					local outlineColor = Color3_fromRGB(255, 0, 0)
-					local calculatedFillTrans = fillTrans
-					local calculatedOutlineTrans = outlineTrans
+				local fillColor, outlineColor = finalChamsColor, finalChamsColor
+				local calcFillTrans, calcOutlineTrans = fillTrans, outlineTrans
 
-					if isChamsActive then
-						local chamColor = Options.ChamsColor and Options.ChamsColor.Value or Color3_fromRGB(0, 255, 255)
-						if isWallcheckActive then
-							local visColor = Options.VisibleChamsColor and Options.VisibleChamsColor.Value or Color3_fromRGB(0, 255, 0)
-							local hidColor = Options.HiddenChamsColor and Options.HiddenChamsColor.Value or Color3_fromRGB(255, 0, 0)
-							local targetPart = head or hrp
-							sharedRaycastParams.FilterDescendantsInstances = { Camera, character, LocalPlayer.Character }
-
-							local result = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position), sharedRaycastParams)
-							local isBlocked = false
-							if result and result.Instance then
-								if result.Instance.CanCollide and not result.Instance:IsDescendantOf(character) then
-									isBlocked = true
-								end
-							end
-							chamColor = (not isBlocked) and visColor or hidColor
-						end
-						fillColor = chamColor
-						outlineColor = chamColor
+				if highlightESP then
+					if not isChamsActive then
+						fillColor = highlightColor
+						outlineColor = highlightColor
+						calcFillTrans = 0.5
+						calcOutlineTrans = 0
+					else
+						outlineColor = highlightColor
+						calcOutlineTrans = 0
 					end
+				end
 
-					if isHighlightActive then
-						local hlColor = Options.HighlightColor and Options.HighlightColor.Value or Color3_fromRGB(255, 0, 0)
-						if not isChamsActive then
-							fillColor = hlColor
-							outlineColor = hlColor
-							calculatedFillTrans = 0.5
-							calculatedOutlineTrans = 0
-						else
-							outlineColor = hlColor
-							calculatedOutlineTrans = 0
-						end
-					end
-
-					hl.FillColor = fillColor
-					hl.OutlineColor = outlineColor
-					hl.FillTransparency = (materialMode ~= 'Highlight') and math_clamp(fillTrans + 0.3, 0.3, 0.8) or calculatedFillTrans
-					hl.OutlineTransparency = calculatedOutlineTrans
-					hl.DepthMode = depthStyle
-					hl.Enabled = true
-				else
-					ClearMaterialChams(character)
-					if character:FindFirstChild('ManagedESPHighlight') then
-						character.ManagedESPHighlight:Destroy()
-					end
+				hl.FillColor = fillColor
+				hl.OutlineColor = outlineColor
+				hl.FillTransparency = useMaterialChams and math.clamp(fillTrans + 0.3, 0.3, 0.8) or calcFillTrans
+				hl.OutlineTransparency = calcOutlineTrans
+				hl.DepthMode = depthStyle
+				hl.Enabled = true
+				data._chamsSet = true
+			end
+		else
+			if data._chamsSet then
+				ClearMaterialChams(character)
+				if data.ManagedHighlight then
+					data.ManagedHighlight:Destroy()
 					data.ManagedHighlight = nil
 				end
+				data._chamsSet = false
+				data._lastMat = nil
+				data._lastMatColor = nil
+			end
+		end
 
-				local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-				local isOutOfBounds = screenPos.X < 0 or screenPos.X > viewportSize.X or screenPos.Y < 0 or screenPos.Y > viewportSize.Y or screenPos.Z < 0
+		local screenPos, onScreen = Camera:WorldToViewportPoint(hrpPos)
+		local sx, sy, sz = screenPos.X, screenPos.Y, screenPos.Z
+		local isOutOfBounds = sx < 0 or sx > viewportSize.X or sy < 0 or sy > viewportSize.Y or sz < 0
 
-				if Toggles.OffscreenESP and Toggles.OffscreenESP.Value and (not onScreen or isOutOfBounds) then
-					local relativePos = Camera.CFrame:PointToObjectSpace(hrp.Position)
-					local dir = Vector2_new(relativePos.X, -relativePos.Y).Unit
-					if dir.X ~= dir.X or dir.Y ~= dir.Y then dir = Vector2_new(0, -1) end
+		if offscreenESP and (not onScreen or isOutOfBounds) then
+			local relativePos = camCFrame:PointToObjectSpace(hrpPos)
+			local dx, dy = relativePos.X, -relativePos.Y
+			local mag = math.sqrt(dx * dx + dy * dy)
+			local dirX, dirY = 0, -1
+			if mag > 1e-4 then
+				dirX, dirY = dx / mag, dy / mag
+			end
 
-					local radius = Options.OffscreenRadius and Options.OffscreenRadius.Value or 200
-					local arrowSize = Options.OffscreenSize and Options.OffscreenSize.Value or 15
+			local ax = centerX + dirX * offscreenRadius
+			local ay = centerY + dirY * offscreenRadius
+			local tipX = ax + dirX * offscreenSize
+			local tipY = ay + dirY * offscreenSize
+			local perpX, perpY = -dirY, dirX
+			local half = offscreenSize * 0.5
 
-					local arrowCenter = center + (dir * radius)
-					local tip = arrowCenter + (dir * arrowSize)
-					local perp = Vector2_new(-dir.Y, dir.X)
-					local left = arrowCenter + (perp * (arrowSize * 0.5))
-					local right = arrowCenter - (perp * (arrowSize * 0.5))
+			data.OffscreenArrow.PointA = Vector2_new(tipX, tipY)
+			data.OffscreenArrow.PointB = Vector2_new(ax + perpX * half, ay + perpY * half)
+			data.OffscreenArrow.PointC = Vector2_new(ax - perpX * half, ay - perpY * half)
+			data.OffscreenArrow.Color = offscreenColor
+			data.OffscreenArrow.Visible = true
+		elseif data.OffscreenArrow and data.OffscreenArrow.Visible then
+			data.OffscreenArrow.Visible = false
+		end
 
-					data.OffscreenArrow.PointA = tip
-					data.OffscreenArrow.PointB = left
-					data.OffscreenArrow.PointC = right
-					data.OffscreenArrow.Color = Options.OffscreenColor and Options.OffscreenColor.Value or Color3_fromRGB(255, 100, 100)
-					data.OffscreenArrow.Visible = true
+		if not Drawing then
+			continue
+		end
+
+		if tracerESP and onScreen then
+			local ox, oy
+			if tracerOriginType == "Center" then
+				ox, oy = centerX, centerY
+			elseif tracerOriginType == "Mouse" then
+				local m = UserInputService:GetMouseLocation()
+				ox, oy = m.X, m.Y
+			else
+				ox, oy = centerX, viewportSize.Y
+			end
+			data.TracerLine.From = Vector2_new(ox, oy)
+			data.TracerLine.To = Vector2_new(sx, sy)
+			data.TracerLine.Color = tracerColor
+			data.TracerLine.Visible = true
+		elseif data.TracerLine and data.TracerLine.Visible then
+			data.TracerLine.Visible = false
+		end
+
+		if onScreen then
+			local headPos = head and head.Position or (hrpPos + Vector3_new(0, 2, 0))
+			local topPoint = Camera:WorldToViewportPoint(headPos + Vector3_new(0, 0.8, 0))
+			local botPoint = Camera:WorldToViewportPoint(hrpPos - Vector3_new(0, 3, 0))
+
+			local boxHeight = math.abs(botPoint.Y - topPoint.Y)
+			local boxWidth = boxHeight * 0.65
+			local boxX = topPoint.X - boxWidth * 0.5
+			local boxY = topPoint.Y
+
+			if boxESP then
+				data.Box.Color = boxColor
+				data.Box.Size = Vector2_new(boxWidth, boxHeight)
+				data.Box.Position = Vector2_new(boxX, boxY)
+				data.Box.Visible = true
+			else
+				data.Box.Visible = false
+			end
+
+			if healthBarESP then
+				local maxHealth = math.max(humanoid.MaxHealth, 1)
+				local healthPercent = math.clamp(humanoid.Health / maxHealth, 0, 1)
+				local barX = boxX - 4
+				local currentHeight = boxHeight * healthPercent
+
+				data.HealthBarBg.Size = Vector2_new(3, boxHeight + 2)
+				data.HealthBarBg.Position = Vector2_new(barX - 1, boxY - 1)
+				data.HealthBarBg.Visible = true
+
+				data.HealthBar.Size = Vector2_new(1, currentHeight)
+				data.HealthBar.Position = Vector2_new(barX, boxY + (boxHeight - currentHeight))
+				data.HealthBar.Color = Color3_fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+				data.HealthBar.Visible = true
+			else
+				data.HealthBarBg.Visible = false
+				data.HealthBar.Visible = false
+			end
+
+			if nameESP then
+				local dist = localHRP and math.floor((localHRP.Position - hrpPos).Magnitude) or 0
+				data.NameText.Color = nameColor
+				data.NameText.Text = (hideUsernames and "[Hidden]" or player.Name) .. " [" .. dist .. "m]"
+				data.NameText.Position = Vector2_new(boxX + boxWidth * 0.5, boxY - 18)
+				data.NameText.Visible = true
+			else
+				data.NameText.Visible = false
+			end
+
+			if passiveESP then
+				if hasForceField then
+					data.PassiveText.Text = "Passive : On"
+					data.PassiveText.Color = Color3_fromRGB(0, 150, 255)
 				else
-					if data.OffscreenArrow then data.OffscreenArrow.Visible = false end
+					data.PassiveText.Text = "Passive: Off"
+					data.PassiveText.Color = nameColor
 				end
+				data.PassiveText.Position = Vector2_new(boxX + boxWidth * 0.5, boxY - 34)
+				data.PassiveText.Visible = true
+			else
+				data.PassiveText.Visible = false
+			end
+		else
+			if data.Box and data.Box.Visible then data.Box.Visible = false end
+			if data.HealthBarBg and data.HealthBarBg.Visible then data.HealthBarBg.Visible = false end
+			if data.HealthBar and data.HealthBar.Visible then data.HealthBar.Visible = false end
+			if data.NameText and data.NameText.Visible then data.NameText.Visible = false end
+			if data.PassiveText and data.PassiveText.Visible then data.PassiveText.Visible = false end
+		end
 
-				if Drawing then
-					if Toggles.TracerESP and Toggles.TracerESP.Value then
-						if onScreen then
-							local originPos = Vector2_new(viewportSize.X / 2, viewportSize.Y)
-							local originType = Options.TracerOrigin and Options.TracerOrigin.Value or 'Bottom'
+		if skeletonESP then
+			local bones = (humanoid.RigType == Enum.HumanoidRigType.R15) and R15_6Joint_Skeleton or R6_6Joint_Skeleton
+			local lines = data.SkeletonLines
+			local lineIdx = 1
 
-							if originType == 'Center' then originPos = center
-							elseif originType == 'Mouse' then originPos = UserInputService:GetMouseLocation() end
-
-							data.TracerLine.From = originPos
-							data.TracerLine.To = Vector2_new(screenPos.X, screenPos.Y)
-							data.TracerLine.Color = Options.TracerColor and Options.TracerColor.Value or Color3_fromRGB(255, 255, 255)
-							data.TracerLine.Visible = true
-						else
-							data.TracerLine.Visible = false
-						end
-					else
-						if data.TracerLine then data.TracerLine.Visible = false end
-					end
-
-					if onScreen then
-						local headPos = head and head.Position or (hrp.Position + Vector3_new(0, 2, 0))
-						local topPoint = Camera:WorldToViewportPoint(headPos + Vector3_new(0, 0.8, 0))
-						local botPoint = Camera:WorldToViewportPoint(hrp.Position - Vector3_new(0, 3, 0))
-
-						local boxHeight = math_abs(botPoint.Y - topPoint.Y)
-						local boxWidth = boxHeight * 0.65
-						local boxPos = Vector2_new(topPoint.X - (boxWidth / 2), topPoint.Y)
-
-						if Toggles.BoxESP and Toggles.BoxESP.Value then
-							data.Box.Color = Options.BoxColor and Options.BoxColor.Value or Color3_fromRGB(255, 255, 255)
-							data.Box.Size = Vector2_new(boxWidth, boxHeight)
-							data.Box.Position = boxPos
-							data.Box.Visible = true
-						else
-							data.Box.Visible = false
-						end
-
-						if Toggles.HealthBarESP and Toggles.HealthBarESP.Value then
-							local maxHealth = math.max(humanoid.MaxHealth, 1)
-							local healthPercent = math_clamp(humanoid.Health / maxHealth, 0, 1)
-							local barHeight = boxHeight
-							local barWidth = 1
-							local barX = boxPos.X - 4
-							local barY = boxPos.Y
-
-							data.HealthBarBg.Size = Vector2_new(barWidth + 2, barHeight + 2)
-							data.HealthBarBg.Position = Vector2_new(barX - 1, barY - 1)
-							data.HealthBarBg.Visible = true
-
-							local currentHeight = barHeight * healthPercent
-							data.HealthBar.Size = Vector2_new(barWidth, currentHeight)
-							data.HealthBar.Position = Vector2_new(barX, barY + (barHeight - currentHeight))
-							data.HealthBar.Color = Color3_fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
-							data.HealthBar.Visible = true
-						else
-							data.HealthBarBg.Visible = false
-							data.HealthBar.Visible = false
-						end
-
-						if Toggles.NameESP and Toggles.NameESP.Value then
-							local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-							local dist = myHRP and math_floor((myHRP.Position - hrp.Position).Magnitude) or 0
-							data.NameText.Color = Options.NameColor and Options.NameColor.Value or Color3_fromRGB(255, 255, 255)
-
-							local displayName = player.Name
-							if Toggles.HideAllUsernames and Toggles.HideAllUsernames.Value then
-								displayName = "[Hidden]"
-							end
-
-							data.NameText.Text = string.format('%s [%dm]', displayName, dist)
-							data.NameText.Position = Vector2_new(boxPos.X + (boxWidth / 2), boxPos.Y - 18)
-							data.NameText.Visible = true
-						else
-							data.NameText.Visible = false
-						end
-
-						if Toggles.PassiveESP and Toggles.PassiveESP.Value then
-							local baseColor = Options.NameColor and Options.NameColor.Value or Color3_fromRGB(255, 255, 255)
-
-							if hasForceField then
-								data.PassiveText.Text = "Passive : On"
-								data.PassiveText.Color = Color3_fromRGB(0, 150, 255)
-							else
-								data.PassiveText.Text = "Passive: Off"
-								data.PassiveText.Color = baseColor
-							end
-
-							data.PassiveText.Position = Vector2_new(boxPos.X + (boxWidth / 2), boxPos.Y - 34)
-							data.PassiveText.Visible = true
-						else
-							data.PassiveText.Visible = false
-						end
-					else
-						if data.Box then data.Box.Visible = false end
-						if data.HealthBarBg then data.HealthBarBg.Visible = false end
-						if data.HealthBar then data.HealthBar.Visible = false end
-						if data.NameText then data.NameText.Visible = false end
-						if data.PassiveText then data.PassiveText.Visible = false end
-					end
-
-					if Toggles.SkeletonESP and Toggles.SkeletonESP.Value then
-						local bones = (humanoid.RigType == Enum.HumanoidRigType.R15) and R15_6Joint_Skeleton or R6_6Joint_Skeleton
-						local lineIdx = 1
-
-						for _, connection in ipairs(bones) do
-							local partA = character:FindFirstChild(connection[1])
-							local partB = character:FindFirstChild(connection[2])
-
-							if partA and partB then
-								local posA, visA = Camera:WorldToViewportPoint(partA.Position)
-								local posB, visB = Camera:WorldToViewportPoint(partB.Position)
-
-								if visA and visB and data.SkeletonLines[lineIdx] then
-									local line = data.SkeletonLines[lineIdx]
-									line.Color = Options.SkeletonColor and Options.SkeletonColor.Value or Color3_fromRGB(255, 255, 255)
-									line.From = Vector2_new(posA.X, posA.Y)
-									line.To = Vector2_new(posB.X, posB.Y)
-									line.Visible = true
-									lineIdx = lineIdx + 1
-								end
-							end
-						end
-
-						for i = lineIdx, #data.SkeletonLines do data.SkeletonLines[i].Visible = false end
-					else
-						for _, line in ipairs(data.SkeletonLines) do line.Visible = false end
+			for i = 1, #bones do
+				local connection = bones[i]
+				local partA = character:FindFirstChild(connection[1])
+				local partB = character:FindFirstChild(connection[2])
+				if partA and partB then
+					local posA, visA = Camera:WorldToViewportPoint(partA.Position)
+					local posB, visB = Camera:WorldToViewportPoint(partB.Position)
+					if visA and visB and lines[lineIdx] then
+						local line = lines[lineIdx]
+						line.Color = skeletonColor
+						line.From = Vector2_new(posA.X, posA.Y)
+						line.To = Vector2_new(posB.X, posB.Y)
+						line.Visible = true
+						lineIdx += 1
 					end
 				end
 			end
-		else
-			ClearMaterialChams(character)
-			ClearAllCharacterHighlights(character)
-			data.ManagedHighlight = nil
 
-			if data.Box then data.Box.Visible = false end
-			if data.HealthBarBg then data.HealthBarBg.Visible = false end
-			if data.HealthBar then data.HealthBar.Visible = false end
-			if data.NameText then data.NameText.Visible = false end
-			if data.PassiveText then data.PassiveText.Visible = false end
-			if data.TracerLine then data.TracerLine.Visible = false end
-			if data.OffscreenArrow then data.OffscreenArrow.Visible = false end
-			for _, line in ipairs(data.SkeletonLines) do line.Visible = false end
+			for i = lineIdx, #lines do
+				lines[i].Visible = false
+			end
+		else
+			for i = 1, #data.SkeletonLines do
+				data.SkeletonLines[i].Visible = false
+			end
 		end
 	end
 end)

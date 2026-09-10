@@ -1,8 +1,10 @@
 --!nolint
 
 repeat
-	game.Loaded:Wait()
+	task.wait()
 until game:IsLoaded() -- Ensure the game is loaded so no possible errors. - lua_u
+
+print("Stage 1")
 
 if not isfolder("SkidWare") then
 	makefolder("SkidWare")
@@ -43,6 +45,10 @@ math_floor = math.floor
 math_rad = math.rad
 math_abs = math.abs
 math_max = math.max
+LocalPlayer = Players.LocalPlayer
+sharedRaycastParams = RaycastParams.new()
+sharedRaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+Camera = workspace.CurrentCamera
 
 -- Local Vars
 const IsLocal = isfile("SkidWare/Settings.json") and HttpService:JSONDecode(readfile("SkidWare/Settings.json")).DevelopmentBuild or false
@@ -62,12 +68,19 @@ AutoFixArmorSelf = false
 AutoFixArmorNearby = false
 
 -- Functions
+function RegisterDrawing(drawingObj)
+	table.insert(DrawingRegistry, drawingObj)
+	return drawingObj
+end
+
 const function Get(name: string, update: boolean?)
 	if (not isfile("SkidWare/" .. name)) or update then
+		print("Downloading", name)
 		const code = game:HttpGet(BaseURL .. name)
+		print("Got", name)
 		writefile("SkidWare/" .. name, code)
 	end
-	
+
 	return readfile("SkidWare/" .. name)
 end
 
@@ -76,12 +89,19 @@ const function LoadTab(tab)
 end
 
 function Load(name: string)
+	print("Loading", name)
 	if IsLocal then
-		local Func = loadstring(readfile("SkidWare/" .. name))
+		local Func = loadstring(readfile("SkidWare/" .. name), name)
 		setfenv(Func, Environment) -- Make sure whatever globals it adds goes to here. - lua_u
 		return Func()
 	else
-		return Get("SkidWare/" .. name, UpdateFlag)
+		local Code = Get( name, UpdateFlag)
+		if Code == "" then
+			Get(name, true)
+		end
+		local Func = loadstring(Code, name)
+		setfenv(Func, Environment) -- Make sure whatever globals it adds goes to here. - lua_u
+		return Func()
 	end
 end
 
@@ -101,7 +121,7 @@ SaveManager = Load("Utilities/SaveManager.lua")
 
 -- BEHOLD THE LOADING OF THE UI (funny ultrakill reference ha)
 Window = Library:CreateWindow({
-	Title = 'SkidWare - noritery',
+	Title = TitleText,
 	Center = true,
 	AutoShow = true,
 	TabPadding = 8,
@@ -131,14 +151,17 @@ const WatermarkConnection = RunService.RenderStepped:Connect(function()
 	end
 end)
 
-RunService:BindToSimulation(function()
-	local ping = 0
-	pcall(function()
-		ping = math_floor(DataPing:GetValue())
-	end)
-	Library:SetWatermark(string.format("%d | %d FPS | %d ms", TitleText, FPS, ping))
-end, Enum.StepFrequency.Hz15)
+task.spawn(function()
+	while task.wait(1/15) do
+		local ping = 0
+		pcall(function()
+			ping = math_floor(DataPing:GetValue())
+		end)--string.format("%s | %d FPS | %d ms", TitleText, FPS, ping)
+		Library:SetWatermark(`{TitleText} | {FPS} FPS | {ping} ms`)
+	end
+end)
 
+-- Load Ze Tabz
 LoadTab(MainTab)
 LoadTab(CombatTab)
 LoadTab(ModsTab)
@@ -146,3 +169,19 @@ LoadTab(VisualsTab)
 LoadTab(BuilderTab)
 LoadTab(UISettingsTab)
 LoadTab(InfoTab)
+
+-- Last Shit
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind', 'AimbotKeybind', 'TriggerKeybind' })
+
+ThemeManager:SetFolder('SkidWare Town')
+SaveManager:SetFolder('SkidWare/configs')
+
+SaveManager:BuildConfigSection(UISettingsTab)
+ThemeManager:ApplyToTab(UISettingsTab)
+
+SaveManager:LoadAutoloadConfig()
