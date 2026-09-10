@@ -3491,6 +3491,7 @@ function Library:CreateWindow(...)
 		end;
 
 		Window.Tabs[Name] = Tab;
+		Tab.Name = Name
 		return Tab;
 	end;
 

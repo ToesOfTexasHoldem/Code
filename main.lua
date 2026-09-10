@@ -56,6 +56,10 @@ const function Get(name: string, update: boolean?)
 	return readfile("SkidWare/" .. name)
 end
 
+const function LoadTab(tab)
+	local module = Load("Tabs/" .. tab.Name:gsub(" ", "") .. ".lua")
+end
+
 function Load(name: string)
 	if IsLocal then
 		local Func = loadstring(readfile("SkidWare/" .. name))
@@ -119,3 +123,11 @@ RunService:BindToSimulation(function()
 	end)
 	Library:SetWatermark(string.format("%d | %d FPS | %d ms", TitleText, FPS, ping))
 end, Enum.StepFrequency.Hz15)
+
+LoadTab(MainTab)
+LoadTab(CombatTab)
+LoadTab(ModsTab)
+LoadTab(VisualsTab)
+LoadTab(BuilderTab)
+LoadTab(UISettingsTab)
+LoadTab(InfoTab)
