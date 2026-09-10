@@ -154,6 +154,8 @@ local function RemoveSeatGUI(seat)
 	end
 end
 
+local CoreGui = game:GetService("CoreGui")
+
 local function CreateSeatGUI(seat)
 	if not seat or not seat:IsA('BasePart') then return end
 	if ActiveSeatGUIs[seat] then return end
@@ -165,7 +167,7 @@ local function CreateSeatGUI(seat)
 	bg.Size = UDim2.new(0, 30, 0, 30)
 	bg.StudsOffset = Vector3.new(0, 2.5, 0)
 	bg.Active = true
-	bg.Parent = PlayerGui
+	bg.Parent = CoreGui
 
 	local btn = Instance.new('TextButton')
 	btn.Name = 'TPButton'
